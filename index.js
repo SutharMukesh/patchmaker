@@ -2,6 +2,10 @@ var fs = require("fs");
 var path = require("path");
 var shell = require("shelljs");
 var program = require('commander');
+if (!shell.which('git')) {
+    shell.echo('Sorry, this script requires git');
+    shell.exit(1);
+}
 program
     .option('-p, --projectName <type>', 'folder name of your project')
     .parse(process.argv);
@@ -12,18 +16,16 @@ if (program.projectName) {
         createPatchFor(repoPath);
     }
     else {
-        shell.echo("No project found at: " + repoPath).exit(1);
+        shell.echo("No project found at: " + repoPath);
+        shell.exit(1);
     }
 }
 else {
     shell.echo("No project folder name provided, specify using -p option");
     shell.exit(1);
 }
-if (!shell.which('git')) {
-    shell.echo('Sorry, this script requires git');
-    shell.exit(1);
-}
 function moveFiles(newFiles, status) {
+    shell.mkdir('-p', "patch/" + status + "/");
     newFiles.forEach(function (file) {
         if (file) {
             // if any folder found then create folder in new 
@@ -40,18 +42,24 @@ function createPatchFor(repoPath) {
     shell.cd(repoPath);
     // get old patch tag
     var tags = shell.exec("git tag", { silent: true }).stdout.split("\n");
+    tags = tags.filter(function (file) { if (file)
+        return file; }).reverse();
     console.log(tags);
     // find file list diff in the old to new patch.
-    var newFiles = shell.exec("git diff --name-only " + tags[0], { silent: true }).stdout.split("\n");
+    var newFiles = shell.exec("git diff --name-only " + tags[1], { silent: true }).stdout.split("\n");
     console.log("Files found in latest patch are:  " + newFiles);
-    shell.mkdir('-p', ['patch/new/', 'patch/old']);
+    // delete patch folder if found 
+    if (fs.existsSync('patch')) {
+        console.log("cleaning up patch folder before getting started.");
+        shell.exec("rm -r patch");
+    }
     // move these files to new folder inside patch
     moveFiles(newFiles, "new");
     // git checkout to old patch tag
-    console.log("preparing revert old patch -- git checkout " + tags[0]);
-    shell.exec("git checkout " + tags[0]);
-    // move these same file to old folder inside patch
-    moveFiles(newFiles, "new");
-    console.log("git checkout " + tags[1]);
+    console.log("preparing revert old patch -- git checkout " + tags[1]);
     shell.exec("git checkout " + tags[1]);
+    // move these same file to old folder inside patch
+    moveFiles(newFiles, "old");
+    console.log("git checkout " + tags[0]);
+    shell.exec("git checkout " + tags[0]);
 }

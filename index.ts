@@ -16,9 +16,10 @@ program
 if (program.projectName) {
     let repoPath: string = path.join(__dirname, `../${program.projectName}`);
     if (fs.existsSync(repoPath)) {
-        createPatchFor(repoPath)
+        createPatchFor(repoPath);
     } else {
-        shell.echo(`No project found at: ${repoPath}`).exit(1);
+        shell.echo(`No project found at: ${repoPath}`);
+        shell.exit(1);
     }
 } else {
     shell.echo(`No project folder name provided, specify using -p option`);
@@ -26,6 +27,7 @@ if (program.projectName) {
 }
 
 function moveFiles(newFiles: string[], status: string) {
+    shell.mkdir('-p', `patch/${status}/`)
     newFiles.forEach((file: string) => {
         if (file) {
             // if any folder found then create folder in new 
@@ -44,23 +46,29 @@ function createPatchFor(repoPath: string) {
 
     // get old patch tag
     let tags: string[] = shell.exec("git tag", { silent: true }).stdout.split("\n")
+    tags = tags.filter(file => { if (file) return file }).reverse();
     console.log(tags)
 
     // find file list diff in the old to new patch.
-    let newFiles: string[] = shell.exec(`git diff --name-only ${tags[0]}`, { silent: true }).stdout.split("\n");
+    let newFiles: string[] = shell.exec(`git diff --name-only ${tags[1]}`, { silent: true }).stdout.split("\n");
     console.log(`Files found in latest patch are:  ${newFiles}`)
-    shell.mkdir('-p', ['patch/new/', 'patch/old'])
+
+    // delete patch folder if found 
+    if (fs.existsSync('patch')) {
+        console.log(`cleaning up patch folder before getting started.`);
+        shell.exec(`rm -r patch`);
+    }
 
     // move these files to new folder inside patch
-    moveFiles(newFiles, "new")
+    moveFiles(newFiles, "new");
 
     // git checkout to old patch tag
-    console.log(`preparing revert old patch -- git checkout ${tags[0]}`)
-    shell.exec(`git checkout ${tags[0]}`)
+    console.log(`preparing revert old patch -- git checkout ${tags[1]}`);
+    shell.exec(`git checkout ${tags[1]}`);
 
     // move these same file to old folder inside patch
-    moveFiles(newFiles, "new")
-    console.log(`git checkout ${tags[1]}`)
-    shell.exec(`git checkout ${tags[1]}`)
+    moveFiles(newFiles, "old")
+    console.log(`git checkout ${tags[0]}`)
+    shell.exec(`git checkout ${tags[0]}`)
 }
 

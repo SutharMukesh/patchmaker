@@ -4,13 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc",
+    "dev": "ts-node-dev --transpileOnly index.ts -p",
+    "prod": "tsc index.ts"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/commander": "^2.12.2",
     "@types/node": "^12.7.9",
+    "@types/shelljs": "^0.8.5",
     "commander": "^3.0.2",
-    "shelljs": "^0.8.3"
+    "shelljs": "^0.8.3",
+    "ts-node-dev": "^1.0.0-pre.43",
+    "typescript": "^3.6.3"
   }
 }
