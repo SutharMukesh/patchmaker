@@ -46,7 +46,7 @@ function createPatchFor(repoPath) {
         return file; }).reverse();
     console.log(tags);
     // find file list diff in the old to new patch.
-    var newFiles = shell.exec("git diff --name-only " + tags[1], { silent: true }).stdout.split("\n");
+    var newFiles = shell.exec("git diff --submodule=diff " + tags[1] + " |grep diff | awk '{print $3}'|awk '{split($0, a, \"a/\"); print a[2]}'", { silent: true }).stdout.split("\n");
     console.log("Files found in latest patch are:  " + newFiles);
     // delete patch folder if found 
     if (fs.existsSync('patch')) {
@@ -58,8 +58,12 @@ function createPatchFor(repoPath) {
     // git checkout to old patch tag
     console.log("preparing revert old patch -- git checkout " + tags[1]);
     shell.exec("git checkout " + tags[1]);
+    shell.exec("git submodule update --recursive");
+    newFiles = shell.exec("git diff --submodule=diff " + tags[0] + " |grep diff | awk '{print $3}'|awk '{split($0, a, \"a/\"); print a[2]}'", { silent: true }).stdout.split("\n");
+    console.log("Files found in old patch are:  " + newFiles);
     // move these same file to old folder inside patch
     moveFiles(newFiles, "old");
     console.log("git checkout " + tags[0]);
     shell.exec("git checkout " + tags[0]);
+    shell.exec("git submodule update --recursive");
 }
