@@ -1,10 +1,8 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -35,11 +33,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
+var _this = this;
 var fs = require("fs");
 var path = require("path");
 var shell = require("shelljs");
-// const program = require('commander');
 var prompts = require("prompts");
 function moveFiles(newFiles, status) {
     shell.mkdir('-p', "patch/" + status + "/");
@@ -119,7 +116,7 @@ function createPatchFor(currentbranch) {
         });
     });
 }
-(function () { return __awaiter(void 0, void 0, void 0, function () {
+(function () { return __awaiter(_this, void 0, void 0, function () {
     var currentbranch, projectpath, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
@@ -127,22 +124,30 @@ function createPatchFor(currentbranch) {
                 currentbranch = null;
                 _a.label = 1;
             case 1:
-                _a.trys.push([1, 3, , 4]);
+                _a.trys.push([1, 4, , 5]);
                 if (!shell.which('git')) {
                     shell.echo('Sorry, this script requires git');
                     shell.exit(1);
                 }
-                projectpath = { value: 'C:/Users/mukes/Desktop/microservice' };
+                return [4 /*yield*/, prompts({
+                        type: "text",
+                        name: "value",
+                        message: "Specify path of the Project.",
+                        validate: function (value) { return fs.existsSync(value) ? true : "Path doesn't exists!"; }
+                    })];
+            case 2:
+                projectpath = _a.sent();
+                // const projectpath = { value: 'C:/Users/mukes/Desktop/microservice' }
                 // go to project directory
                 shell.cd(projectpath.value);
                 // get current branch name 
                 currentbranch = shell.exec("git symbolic-ref -q HEAD --short", { silent: true });
                 console.log("Current Branch: " + currentbranch);
                 return [4 /*yield*/, createPatchFor(currentbranch)];
-            case 2:
-                _a.sent();
-                return [3 /*break*/, 4];
             case 3:
+                _a.sent();
+                return [3 /*break*/, 5];
+            case 4:
                 error_1 = _a.sent();
                 console.error(error_1);
                 console.log("Fallout: checkout to " + currentbranch + " branch");
@@ -150,9 +155,8 @@ function createPatchFor(currentbranch) {
                 shell.exec("git submodule update --recursive");
                 console.log("exiting...");
                 process.exit(1);
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 5];
+            case 5: return [2 /*return*/];
         }
     });
 }); })();
-//# sourceMappingURL=index.js.map
