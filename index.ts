@@ -26,24 +26,38 @@ function getDiffFiles(targetbranch: string) {
     }).filter(Boolean)
 }
 
-async function createPatchFor(currentbranch: string) {
+async function createPatch() {
 
     const branchlist = shell.exec(`git branch --format='%(refname:short)'`, { silent: true }).replace(/(\n)+/g, ' ').replace(/'/g, '').split(' ').filter(Boolean);
+    
+    const sourcebranch = await prompts({
+        type: "select",
+        name: "value",
+        message: `Select Source branch (New Patch branch)`,
+        choices: branchlist.map((branchname: String) => { return { title: branchname, value: branchname } })
+    });
+
     const targetbranch = await prompts({
         type: "select",
         name: "value",
-        message: `Select target branch`,
+        message: `Select target branch (Old Patch branch)`,
         choices: branchlist.map((branchname: String) => { return { title: branchname, value: branchname } })
     });
+
     const confirmation = await prompts({
         type: 'toggle',
         name: 'value',
-        message: `Create Patch for --> ${currentbranch} with ${targetbranch.value}?`,
+        message: `Create Patch for --> ${sourcebranch.value}[New] with ${targetbranch.value}[Old]?`,
         initial: true,
         active: 'yes',
         inactive: 'no'
     })
     if (!confirmation.value) shell.exit(1)
+
+    // Checkout source branch
+    console.log(`git checkout ${sourcebranch.value}`)
+    shell.exec(`git checkout ${sourcebranch.value}`)
+    shell.exec(`git submodule update --recursive`);
 
     // find file list diff in the old to new patch.
     // let newFiles: string[] = shell.exec(`git diff --submodule=diff ${targetbranch.value} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
@@ -69,7 +83,7 @@ async function createPatchFor(currentbranch: string) {
 
     // const oldfiles: string[] = shell.exec(`git diff --submodule=diff ${currentbranch}`, { silent: true }).grep(/(diff|file)/g).split("diff").filter(Boolean).map((file: String) => { return { name: file.split(' ')[2].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] } })
     // const oldfiles: string[] = shell.exec(`git diff --submodule=diff ${currentbranch} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
-    const oldfiles: string[] = getDiffFiles(currentbranch)
+    const oldfiles: string[] = getDiffFiles(sourcebranch.value)
     if (!oldfiles.length) console.warn(`No files found in old revision, assuming all files are NEW in this patch.`);
     else {
         console.log(`Files found in old patch are:  ${oldfiles}`)
@@ -77,9 +91,6 @@ async function createPatchFor(currentbranch: string) {
         
     }
     moveFiles(oldfiles, "old")
-    console.log(`git checkout ${currentbranch}`)
-    shell.exec(`git checkout ${currentbranch}`)
-    shell.exec(`git submodule update --recursive`);
 }
 
 
@@ -105,7 +116,11 @@ async function createPatchFor(currentbranch: string) {
         currentbranch = shell.exec(`git symbolic-ref -q HEAD --short`, { silent: true });
         console.log(`Current Branch: ${currentbranch}`)
 
-        await createPatchFor(currentbranch);    
+        await createPatch();
+
+        console.log(`git checkout ${currentbranch}`)
+        shell.exec(`git checkout ${currentbranch}`)
+        shell.exec(`git submodule update --recursive`);
     } catch (error) {
         console.error(error);
         console.log(`Fallout: checkout to ${currentbranch} branch`)

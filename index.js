@@ -58,9 +58,9 @@ function getDiffFiles(targetbranch) {
         return (file.mode != "deleted") ? file.name : '';
     }).filter(Boolean);
 }
-function createPatchFor(currentbranch) {
+function createPatch() {
     return __awaiter(this, void 0, void 0, function () {
-        var branchlist, targetbranch, confirmation, newfiles, oldfiles;
+        var branchlist, sourcebranch, targetbranch, confirmation, newfiles, oldfiles;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -68,23 +68,35 @@ function createPatchFor(currentbranch) {
                     return [4 /*yield*/, prompts({
                             type: "select",
                             name: "value",
-                            message: "Select target branch",
+                            message: "Select Source branch (New Patch branch)",
                             choices: branchlist.map(function (branchname) { return { title: branchname, value: branchname }; })
                         })];
                 case 1:
+                    sourcebranch = _a.sent();
+                    return [4 /*yield*/, prompts({
+                            type: "select",
+                            name: "value",
+                            message: "Select target branch (Old Patch branch)",
+                            choices: branchlist.map(function (branchname) { return { title: branchname, value: branchname }; })
+                        })];
+                case 2:
                     targetbranch = _a.sent();
                     return [4 /*yield*/, prompts({
                             type: 'toggle',
                             name: 'value',
-                            message: "Create Patch for --> " + currentbranch + " with " + targetbranch.value + "?",
+                            message: "Create Patch for --> " + sourcebranch.value + "[New] with " + targetbranch.value + "[Old]?",
                             initial: true,
                             active: 'yes',
                             inactive: 'no'
                         })];
-                case 2:
+                case 3:
                     confirmation = _a.sent();
                     if (!confirmation.value)
                         shell.exit(1);
+                    // Checkout source branch
+                    console.log("git checkout " + sourcebranch.value);
+                    shell.exec("git checkout " + sourcebranch.value);
+                    shell.exec("git submodule update --recursive");
                     newfiles = getDiffFiles(targetbranch.value);
                     if (!newfiles.length)
                         throw new Error("No new files found to create patch");
@@ -100,7 +112,7 @@ function createPatchFor(currentbranch) {
                     console.log("preparing revert old patch -- git checkout " + targetbranch.value);
                     shell.exec("git checkout " + targetbranch.value);
                     shell.exec("git submodule update --recursive");
-                    oldfiles = getDiffFiles(currentbranch);
+                    oldfiles = getDiffFiles(sourcebranch.value);
                     if (!oldfiles.length)
                         console.warn("No files found in old revision, assuming all files are NEW in this patch.");
                     else {
@@ -108,9 +120,6 @@ function createPatchFor(currentbranch) {
                         // move these same file to old folder inside patch
                     }
                     moveFiles(oldfiles, "old");
-                    console.log("git checkout " + currentbranch);
-                    shell.exec("git checkout " + currentbranch);
-                    shell.exec("git submodule update --recursive");
                     return [2 /*return*/];
             }
         });
@@ -143,9 +152,12 @@ function createPatchFor(currentbranch) {
                 // get current branch name 
                 currentbranch = shell.exec("git symbolic-ref -q HEAD --short", { silent: true });
                 console.log("Current Branch: " + currentbranch);
-                return [4 /*yield*/, createPatchFor(currentbranch)];
+                return [4 /*yield*/, createPatch()];
             case 3:
                 _a.sent();
+                console.log("git checkout " + currentbranch);
+                shell.exec("git checkout " + currentbranch);
+                shell.exec("git submodule update --recursive");
                 return [3 /*break*/, 5];
             case 4:
                 error_1 = _a.sent();
