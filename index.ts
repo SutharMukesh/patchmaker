@@ -1,30 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const shell = require("shelljs");
-const program = require('commander');
-
-if (!shell.which('git')) {
-    shell.echo('Sorry, this script requires git');
-    shell.exit(1);
-}
-
-program
-    .option('-p, --projectName <type>', 'folder name of your project')
-    .parse(process.argv);
-
-// let projectName: string = "gitSampleProjectForPatchCreator";
-if (program.projectName) {
-    let repoPath: string = path.join(__dirname, `../${program.projectName}`);
-    if (fs.existsSync(repoPath)) {
-        createPatchFor(repoPath);
-    } else {
-        shell.echo(`No project found at: ${repoPath}`);
-        shell.exit(1);
-    }
-} else {
-    shell.echo(`No project folder name provided, specify using -p option`);
-    shell.exit(1);
-}
+const prompts = require("prompts");
 
 function moveFiles(newFiles: string[], status: string) {
     shell.mkdir('-p', `patch/${status}/`)
@@ -34,46 +11,107 @@ function moveFiles(newFiles: string[], status: string) {
             if (path.dirname(file) != ".") {
                 shell.mkdir('-p', `patch/${status}/${path.dirname(file)}`);
             }
-            console.log(`Copying file from ${file} patch/${status}/${file}`)
-            shell.exec(`cp ${file} patch/${status}/${file}`)
+            console.log(`Copying file from ${file} --> patch/${status}/${file}`)
+            shell.cp(`${file}`, `patch/${status}/${file}`)
         }
     });
 }
 
-function createPatchFor(repoPath: string) {
-    // go to project directory
-    shell.cd(repoPath);
 
-    // get old patch tag
-    let tags: string[] = shell.exec("git tag", { silent: true }).stdout.split("\n")
-    tags = tags.filter(file => { if (file) return file }).reverse();
-    console.log(tags)
+function getDiffFiles(targetbranch: string) {
+    const filelist: Array<any> = shell.exec(`git diff --submodule=diff ${targetbranch}`, { silent: true }).grep(/(diff|file)/g).split("diff").filter(Boolean).map((file: String) => { return { name: file.split(' ')[2].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] } })
+    return filelist.map((file: any) => {
+        console.log(`${file.mode} : ${file.name}`)
+        return (file.mode != "deleted") ? file.name : '';
+    }).filter(Boolean)
+}
+
+async function createPatchFor(currentbranch: string) {
+
+    const branchlist = shell.exec(`git branch --format='%(refname:short)'`, { silent: true }).replace(/(\n)+/g, ' ').replace(/'/g, '').split(' ').filter(Boolean);
+    const targetbranch = await prompts({
+        type: "select",
+        name: "value",
+        message: `Select target branch`,
+        choices: branchlist.map((branchname: String) => { return { title: branchname, value: branchname } })
+    });
+    const confirmation = await prompts({
+        type: 'toggle',
+        name: 'value',
+        message: `Create Patch for --> ${currentbranch} with ${targetbranch.value}?`,
+        initial: true,
+        active: 'yes',
+        inactive: 'no'
+    })
+    if (!confirmation.value) shell.exit(1)
 
     // find file list diff in the old to new patch.
-    let newFiles: string[] = shell.exec(`git diff --submodule=diff ${tags[1]} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
-    console.log(`Files found in latest patch are:  ${newFiles}`)
+    // let newFiles: string[] = shell.exec(`git diff --submodule=diff ${targetbranch.value} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
+    // const newfiles: string[] = shell.exec(`git diff --submodule=diff ${targetbranch.value}`, { silent: true }).grep('diff').stdout.split('\n').filter(Boolean).map((file: String) => file.split(' ')[2].split('a/')[1])
 
-    // delete patch folder if found 
+    const newfiles = getDiffFiles(targetbranch.value)
+    if (!newfiles.length) throw new Error(`No new files found to create patch`);
+    console.log(`Files found in latest patch are:  ${newfiles}`)
+
+    // delete patch folder if found  
     if (fs.existsSync('patch')) {
         console.log(`cleaning up patch folder before getting started.`);
-        shell.exec(`rm -r patch`);
+        shell.rm('-r', `patch`);
     }
 
     // move these files to new folder inside patch
-    moveFiles(newFiles, "new");
+    moveFiles(newfiles, "new");
 
     // git checkout to old patch tag
-    console.log(`preparing revert old patch -- git checkout ${tags[1]}`);
-    shell.exec(`git checkout ${tags[1]}`);
+    console.log(`preparing revert old patch -- git checkout ${targetbranch.value}`);
+    shell.exec(`git checkout ${targetbranch.value}`);
     shell.exec(`git submodule update --recursive`);
 
-    newFiles = shell.exec(`git diff --submodule=diff ${tags[0]} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
-    console.log(`Files found in old patch are:  ${newFiles}`)
-
-    // move these same file to old folder inside patch
-    moveFiles(newFiles, "old")
-    console.log(`git checkout ${tags[0]}`)
-    shell.exec(`git checkout ${tags[0]}`)
+    // const oldfiles: string[] = shell.exec(`git diff --submodule=diff ${currentbranch}`, { silent: true }).grep(/(diff|file)/g).split("diff").filter(Boolean).map((file: String) => { return { name: file.split(' ')[2].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] } })
+    // const oldfiles: string[] = shell.exec(`git diff --submodule=diff ${currentbranch} |grep diff | awk '{print $3}'|awk '{split($0, a, "a/"); print a[2]}'`, { silent: true }).stdout.split("\n");
+    const oldfiles: string[] = getDiffFiles(currentbranch)
+    if (!oldfiles.length) console.warn(`No files found in old revision, assuming all files are NEW in this patch.`);
+    else {
+        console.log(`Files found in old patch are:  ${oldfiles}`)
+        // move these same file to old folder inside patch
+        
+    }
+    moveFiles(oldfiles, "old")
+    console.log(`git checkout ${currentbranch}`)
+    shell.exec(`git checkout ${currentbranch}`)
     shell.exec(`git submodule update --recursive`);
 }
 
+
+(async () => {
+    let currentbranch = null;
+    try {
+        if (!shell.which('git')) {
+            shell.echo('Sorry, this script requires git');
+            shell.exit(1);
+        }
+
+        const projectpath = await prompts({
+            type: "text",
+            name: "value",
+            message: `Specify path of the Project.`,
+            validate: (value: String) => fs.existsSync(value) ? true : `Path doesn't exists!`
+        });
+        // const projectpath = { value: 'C:/Users/mukes/Desktop/microservice' }
+
+        // go to project directory
+        shell.cd(projectpath.value);
+        // get current branch name 
+        currentbranch = shell.exec(`git symbolic-ref -q HEAD --short`, { silent: true });
+        console.log(`Current Branch: ${currentbranch}`)
+
+        await createPatchFor(currentbranch);    
+    } catch (error) {
+        console.error(error);
+        console.log(`Fallout: checkout to ${currentbranch} branch`)
+        shell.exec(`git checkout ${currentbranch}`)
+        shell.exec(`git submodule update --recursive`);
+        console.log(`exiting...`)
+        process.exit(1)
+    }
+})();
