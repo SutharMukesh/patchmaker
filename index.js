@@ -133,25 +133,33 @@ function createPatch() {
                 currentbranch = null;
                 _a.label = 1;
             case 1:
-                _a.trys.push([1, 3, , 4]);
+                _a.trys.push([1, 4, , 5]);
                 if (!shell.which('git')) {
                     shell.echo('Sorry, this script requires git');
                     shell.exit(1);
                 }
-                projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' };
+                return [4 /*yield*/, prompts({
+                        type: "text",
+                        name: "value",
+                        message: "Specify path of the Project.",
+                        validate: function (value) { return fs.existsSync(value) ? true : "Path doesn't exists!"; }
+                    })];
+            case 2:
+                projectpath = _a.sent();
+                // const projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' }
                 // go to project directory
                 shell.cd(projectpath.value);
                 // get current branch name 
                 currentbranch = shell.exec("git symbolic-ref -q HEAD --short", { silent: true });
                 console.log("Current Branch: " + currentbranch);
                 return [4 /*yield*/, createPatch()];
-            case 2:
+            case 3:
                 _a.sent();
                 console.log("git checkout " + currentbranch);
                 shell.exec("git checkout " + currentbranch);
                 shell.exec("git submodule update --recursive");
-                return [3 /*break*/, 4];
-            case 3:
+                return [3 /*break*/, 5];
+            case 4:
                 error_1 = _a.sent();
                 console.error(error_1);
                 console.log("Fallout: checkout to " + currentbranch + " branch");
@@ -159,8 +167,8 @@ function createPatch() {
                 shell.exec("git submodule update --recursive");
                 console.log("exiting...");
                 process.exit(1);
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 5];
+            case 5: return [2 /*return*/];
         }
     });
 }); })();

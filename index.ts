@@ -102,13 +102,13 @@ async function createPatch() {
             shell.exit(1);
         }
 
-        // const projectpath = await prompts({
-        //     type: "text",
-        //     name: "value",
-        //     message: `Specify path of the Project.`,
-        //     validate: (value: String) => fs.existsSync(value) ? true : `Path doesn't exists!`
-        // });
-        const projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' }
+        const projectpath = await prompts({
+            type: "text",
+            name: "value",
+            message: `Specify path of the Project.`,
+            validate: (value: String) => fs.existsSync(value) ? true : `Path doesn't exists!`
+        });
+        // const projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' }
 
         // go to project directory
         shell.cd(projectpath.value);
