@@ -19,7 +19,7 @@ function moveFiles(newFiles: string[], status: string) {
 
 
 function getDiffFiles(targetbranch: string) {
-    const filelist: Array<any> = shell.exec(`git diff --submodule=diff ${targetbranch}`, { silent: true }).grep(/(diff|file)/g).split("diff").filter(Boolean).map((file: String) => { return { name: file.split(' ')[2].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] } })
+    const filelist: Array<any> = shell.exec(`git diff --submodule=diff ${targetbranch}`, { silent: true }).grep(/(diff|file)/g).split("diff --git ").filter(Boolean).map((file: String) => { return { name: file.split(' ')[0].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] } })
     return filelist.map((file: any) => {
         console.log(`${file.mode} : ${file.name}`)
         return (file.mode != "deleted") ? file.name : '';
@@ -102,13 +102,13 @@ async function createPatch() {
             shell.exit(1);
         }
 
-        const projectpath = await prompts({
-            type: "text",
-            name: "value",
-            message: `Specify path of the Project.`,
-            validate: (value: String) => fs.existsSync(value) ? true : `Path doesn't exists!`
-        });
-        // const projectpath = { value: 'C:/Users/mukes/Desktop/microservice' }
+        // const projectpath = await prompts({
+        //     type: "text",
+        //     name: "value",
+        //     message: `Specify path of the Project.`,
+        //     validate: (value: String) => fs.existsSync(value) ? true : `Path doesn't exists!`
+        // });
+        const projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' }
 
         // go to project directory
         shell.cd(projectpath.value);

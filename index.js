@@ -52,7 +52,7 @@ function moveFiles(newFiles, status) {
     });
 }
 function getDiffFiles(targetbranch) {
-    var filelist = shell.exec("git diff --submodule=diff " + targetbranch, { silent: true }).grep(/(diff|file)/g).split("diff").filter(Boolean).map(function (file) { return { name: file.split(' ')[2].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] }; });
+    var filelist = shell.exec("git diff --submodule=diff " + targetbranch, { silent: true }).grep(/(diff|file)/g).split("diff --git ").filter(Boolean).map(function (file) { return { name: file.split(' ')[0].split('a/')[1], mode: file.split('\n')[1].split(' ')[0] }; });
     return filelist.map(function (file) {
         console.log(file.mode + " : " + file.name);
         return (file.mode != "deleted") ? file.name : '';
@@ -133,33 +133,25 @@ function createPatch() {
                 currentbranch = null;
                 _a.label = 1;
             case 1:
-                _a.trys.push([1, 4, , 5]);
+                _a.trys.push([1, 3, , 4]);
                 if (!shell.which('git')) {
                     shell.echo('Sorry, this script requires git');
                     shell.exit(1);
                 }
-                return [4 /*yield*/, prompts({
-                        type: "text",
-                        name: "value",
-                        message: "Specify path of the Project.",
-                        validate: function (value) { return fs.existsSync(value) ? true : "Path doesn't exists!"; }
-                    })];
-            case 2:
-                projectpath = _a.sent();
-                // const projectpath = { value: 'C:/Users/mukes/Desktop/microservice' }
+                projectpath = { value: 'C:/Users/mukes/Desktop/mfxapi.war' };
                 // go to project directory
                 shell.cd(projectpath.value);
                 // get current branch name 
                 currentbranch = shell.exec("git symbolic-ref -q HEAD --short", { silent: true });
                 console.log("Current Branch: " + currentbranch);
                 return [4 /*yield*/, createPatch()];
-            case 3:
+            case 2:
                 _a.sent();
                 console.log("git checkout " + currentbranch);
                 shell.exec("git checkout " + currentbranch);
                 shell.exec("git submodule update --recursive");
-                return [3 /*break*/, 5];
-            case 4:
+                return [3 /*break*/, 4];
+            case 3:
                 error_1 = _a.sent();
                 console.error(error_1);
                 console.log("Fallout: checkout to " + currentbranch + " branch");
@@ -167,8 +159,8 @@ function createPatch() {
                 shell.exec("git submodule update --recursive");
                 console.log("exiting...");
                 process.exit(1);
-                return [3 /*break*/, 5];
-            case 5: return [2 /*return*/];
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
         }
     });
 }); })();
